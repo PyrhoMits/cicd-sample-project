@@ -1,0 +1,49 @@
+name: PR Prescreen
+
+on:
+  pull_request:
+    branches:
+      - deploy-dev
+
+permissions:
+  contents: read
+
+jobs:
+  prescreen:
+    name: Backend prescreen
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      DB_NAME: test_db
+      DB_USER: test_user
+      DB_PASSWORD: test_password
+      DB_HOST: localhost
+      DB_PORT: "5432"
+      JWT_SECRET_KEY: test-secret
+      JWT_ALGORITHM: HS256
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Critical lint
+        run: python -m ruff check src tests --select E9,F63,F7,F82
+
+      - name: Compile check
+        run: python -m compileall -q src
+
+      - name: Unit tests
+        run: python -m pytest -q tests/unit
